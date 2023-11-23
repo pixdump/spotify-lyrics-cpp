@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+# Environment Variables
+*.env
+
+# Output Folder
+output/*
