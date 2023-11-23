@@ -11,16 +11,14 @@ struct tokenResult {
     std::string token;
 };
 
-struct authHeader {
-    std::string auth;
-    std::string value;
-};
-
 struct spotifyData {
     bool success;
     boost::json::value data;
 };
 
+boost::json::value errDefault = {
+        {"error", "Something Went Wrong With Spotify API"}
+};
 
 std::map<std::string, std::string> isValidType(const std::string& url) {
     std::regex urlPattern("https:\\/\\/open\\.spotify\\.com\\/(track|album)\\/([a-zA-Z0-9]+)(\\?.*)?");
@@ -50,15 +48,14 @@ tokenResult getToken() {
     if (r.status_code != 200) {
         return { false, "Something Went Wrong while getting access token" };
     }
-    std::cout << r.text << std::endl;
 
     boost::json::value json = boost::json::parse(r.text);
-    std::string accessToken = json.at("access_token").as_string().c_str();
+    std::string accessToken = boost::json::value_to<std::string>(json.at("access_token"));
     return { true, accessToken };
 }
 
-authHeader getAuthHeader(const std::string& token) {
-    return { "authorization" , "Bearer " + token };
+std::map<std::string, std::string, cpr::CaseInsensitiveCompare> getAuthHeader(const std::string& token) {
+    return { {"authorization", "Bearer " + token} };
 }
 
 std::map<std::string, std::string> inputURL() {
@@ -73,9 +70,33 @@ std::map<std::string, std::string> inputURL() {
     return inputURL();
 }
 
-spotifyData processTracks(const std::string& trackId, const std::string& token) {
+
+void printTrackDetails(boost::json::value trackJson) {
+    std::cout << boost::json::value_to<std::string>(trackJson.at("name"));
+}
+
+
+spotifyData getTrackInfo(const std::string& trackId, const std::string& token) {
+    std::string endpointURL = "https://api.spotify.com/v1/tracks/" + trackId;
+    auto authHeader = getAuthHeader(token);
+    cpr::Response res = cpr::Get(cpr::Url{ endpointURL },
+        cpr::Header{ authHeader });
+    if (res.status_code != 200) {
+        return { false , errDefault };
+    }
+    boost::json::value jsonData = boost::json::parse(res.text);
+    return { true, jsonData };
 
 }
+
+void processTracks(const std::string& trackId, const std::string& token) {
+    spotifyData sp = getTrackInfo(trackId, token);
+    if (sp.success) {
+        printTrackDetails(sp.data);
+    }
+
+}
+
 
 int main() {
     dotenv::init(); // Load Environment Variables from .env
@@ -85,9 +106,9 @@ int main() {
 
     // Check the result
     if (tokenResult.success) {
-        // std::cout << "Token: " << tokenResult.token << std::endl;
-        authHeader res = getAuthHeader(tokenResult.token);
-        std::cout << "{" << res.auth << ":" << res.value << std::endl;
+        if (urlType["type"] == "track") {
+            processTracks(urlType["id"], tokenResult.token);
+        }
     }
     else {
         std::cerr << "Error: " << tokenResult.token << std::endl;
