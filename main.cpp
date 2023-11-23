@@ -4,7 +4,7 @@
 #include <dotenv.h>
 #include <string>
 #include <regex>
-
+#include <vector>
 
 
 struct tokenResult {
@@ -76,6 +76,34 @@ std::map<std::string, std::string> inputURL() {
     return inputURL();
 }
 
+std::string convertLyrics(const boost::json::value& lyricsJson) {
+    bool isUnsynced = (boost::json::value_to<std::string>(lyricsJson.at("syncType")) == "UNSYNCED");
+    std::vector<std::string> lrcLines;
+    if (isUnsynced) {
+        for (const auto& line : lyricsJson.at("lines").as_array()) {
+            std::string formattedLine;
+            formattedLine = boost::json::value_to<std::string>(line.at("words"));
+            lrcLines.push_back(formattedLine);
+        }
+    }
+    else {
+        for (const auto& line : lyricsJson.at("lines").as_array()) {
+            std::string formattedLine;
+            std::string word = boost::json::value_to<std::string>(line.at("words"));
+            std::string timeTag = boost::json::value_to<std::string>(line.at("timeTag"));
+            formattedLine = std::format("[{}]{}", timeTag, word);
+            lrcLines.push_back(formattedLine);
+        }
+
+    }
+    std::string result;
+    for (const auto& line : lrcLines) {
+        result += line + '\n';
+    }
+    return result;
+
+}
+
 lyricsData getLyrics(const std::string& trackId) {
     const std::string lyricsAPI = std::getenv("LYRICS_API");
     if (lyricsAPI.length() == 0) {
@@ -89,12 +117,11 @@ lyricsData getLyrics(const std::string& trackId) {
     }
     boost::json::value lyricsJson = boost::json::parse(res.text);
     bool err = boost::json::value_to<bool>(lyricsJson.at("error"));
-    if (err){
-        return {false , "Error Getting Lyrics"};
+    if (err) {
+        return { false , "Error Getting Lyrics" };
     }
-
-
-
+    std::string lyrics = convertLyrics(lyricsJson);
+    return { true , lyrics };
 }
 
 void printTrackDetails(boost::json::value trackJson) {
@@ -102,6 +129,7 @@ void printTrackDetails(boost::json::value trackJson) {
 }
 
 void fetchAndWriteLyrics(const std::string& trackId, const std::string& trackName) {
+
 
 }
 
