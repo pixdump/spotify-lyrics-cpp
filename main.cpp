@@ -6,6 +6,7 @@
 #include <regex>
 
 
+
 struct tokenResult {
     bool success;
     std::string token;
@@ -14,6 +15,11 @@ struct tokenResult {
 struct spotifyData {
     bool success;
     boost::json::value data;
+};
+
+struct lyricsData {
+    bool success;
+    std::string lyrics;
 };
 
 boost::json::value errDefault = {
@@ -70,9 +76,33 @@ std::map<std::string, std::string> inputURL() {
     return inputURL();
 }
 
+lyricsData getLyrics(const std::string& trackId) {
+    const std::string lyricsAPI = std::getenv("LYRICS_API");
+    if (lyricsAPI.length() == 0) {
+        std::cerr << "Lyrics API missing..Exiting.." << std::endl;
+        exit(1);
+    }
+    std::string reqURL = lyricsAPI + std::format("{}&format=lrc", trackId);
+    cpr::Response res = cpr::Get(cpr::Url{ reqURL });
+    if (res.status_code != 200) {
+        return { false , "API issue" };
+    }
+    boost::json::value lyricsJson = boost::json::parse(res.text);
+    bool err = boost::json::value_to<bool>(lyricsJson.at("error"));
+    if (err){
+        return {false , "Error Getting Lyrics"};
+    }
+
+
+
+}
 
 void printTrackDetails(boost::json::value trackJson) {
     std::cout << boost::json::value_to<std::string>(trackJson.at("name"));
+}
+
+void fetchAndWriteLyrics(const std::string& trackId, const std::string& trackName) {
+
 }
 
 
@@ -93,6 +123,10 @@ void processTracks(const std::string& trackId, const std::string& token) {
     spotifyData sp = getTrackInfo(trackId, token);
     if (sp.success) {
         printTrackDetails(sp.data);
+        fetchAndWriteLyrics(trackId, boost::json::value_to<std::string>(sp.data.at("name")));
+    }
+    else {
+        std::cerr << boost::json::value_to<std::string>(sp.data.at("error"));
     }
 
 }
