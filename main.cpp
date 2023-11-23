@@ -16,8 +16,14 @@ struct authHeader {
     std::string value;
 };
 
+struct spotifyData {
+    bool success;
+    boost::json::value data;
+};
+
+
 std::map<std::string, std::string> isValidType(const std::string& url) {
-    std::regex urlPattern("https://open\\.spotify\\.com/(track|album)/([a-zA-Z0-9]+)");
+    std::regex urlPattern("https:\\/\\/open\\.spotify\\.com\\/(track|album)\\/([a-zA-Z0-9]+)(\\?.*)?");
     std::smatch match;
 
     if (std::regex_match(url, match, urlPattern)) {
@@ -30,6 +36,12 @@ std::map<std::string, std::string> isValidType(const std::string& url) {
 tokenResult getToken() {
     const std::string clientId = std::getenv("CLIENT_ID");
     const std::string clientSecret = std::getenv("CLIENT_SECRET");
+
+    if (clientId.length() == 0 || clientSecret.length() == 0) {
+        std::cout << "Environment Variable Missing" << std::endl;
+        exit(1);
+    }
+
     std::string authurl = "https://accounts.spotify.com/api/token";
     cpr::Response r = cpr::Post(cpr::Url{ authurl },
         cpr::Payload{ {"grant_type", "client_credentials"} },
@@ -38,9 +50,9 @@ tokenResult getToken() {
     if (r.status_code != 200) {
         return { false, "Something Went Wrong while getting access token" };
     }
+    std::cout << r.text << std::endl;
 
     boost::json::value json = boost::json::parse(r.text);
-
     std::string accessToken = json.at("access_token").as_string().c_str();
     return { true, accessToken };
 }
@@ -61,10 +73,14 @@ std::map<std::string, std::string> inputURL() {
     return inputURL();
 }
 
+spotifyData processTracks(const std::string& trackId, const std::string& token) {
+
+}
 
 int main() {
     dotenv::init(); // Load Environment Variables from .env
-    inputURL();
+    std::map<std::string, std::string> urlType = inputURL();
+
     tokenResult tokenResult = getToken();
 
     // Check the result
