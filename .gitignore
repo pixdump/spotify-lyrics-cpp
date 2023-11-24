@@ -37,3 +37,4 @@
 # Output Folder
 output/*
 tests/*
+*.lrc

@@ -5,6 +5,7 @@
 #include <string>
 #include <regex>
 #include <vector>
+#include <fstream>
 
 
 struct tokenResult {
@@ -76,6 +77,7 @@ std::map<std::string, std::string> inputURL() {
     return inputURL();
 }
 
+
 std::string convertLyrics(const boost::json::value& lyricsJson) {
     bool isUnsynced = (boost::json::value_to<std::string>(lyricsJson.at("syncType")) == "UNSYNCED");
     std::vector<std::string> lrcLines;
@@ -101,8 +103,8 @@ std::string convertLyrics(const boost::json::value& lyricsJson) {
         result += line + '\n';
     }
     return result;
-
 }
+
 
 lyricsData getLyrics(const std::string& trackId) {
     const std::string lyricsAPI = std::getenv("LYRICS_API");
@@ -124,13 +126,31 @@ lyricsData getLyrics(const std::string& trackId) {
     return { true , lyrics };
 }
 
-void printTrackDetails(boost::json::value trackJson) {
+void printTrackDetails(boost::json::value& trackJson) {
     std::cout << boost::json::value_to<std::string>(trackJson.at("name"));
 }
 
+void writeToLrcFile(const std::string& lyrics, const std::string& trackName) {
+    std::ofstream lrcFile(trackName + ".lrc", std::ios::out | std::ios::trunc);
+    if (lrcFile.is_open()) {
+        lrcFile << lyrics;
+        lrcFile.close();
+        std::cout << std::format("Saved Lyrics to {}.lrc", trackName) << std::endl;
+    }
+    else {
+        std::cerr << "Unable to open File for writing" << std::endl;
+    }
+}
+
 void fetchAndWriteLyrics(const std::string& trackId, const std::string& trackName) {
-
-
+    lyricsData data = getLyrics(trackId);
+    if (data.success) {
+        std::cout << std::format("Succesfully Fetched Lyrics for {}", trackName) << std::endl;
+        writeToLrcFile(data.lyrics, trackName);
+    }
+    else {
+        std::cerr << "Error " << data.lyrics << std::endl;
+    }
 }
 
 
